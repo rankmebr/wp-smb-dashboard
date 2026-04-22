@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard · RANKME SMB</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --surface2: #f0f1f4;
+    --border: #e0e2e9;
+    --c-total:   #2563eb;
+    --c-done:    #059669;
+    --c-backlog: #dc2626;
+    --c-rate:    #d97706;
+    --c-ag:      #7c3aed;
+    --c-rev:     #0891b2;
+    --text: #111827;
+    --text2: #374151;
+    --muted: #6b7280;
+    --mono: 'DM Mono', monospace;
+    --sans: 'Syne', sans-serif;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; }
+  .container { max-width:1280px; margin:0 auto; padding:36px 24px; }
+
+  /* Header */
+  header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:28px; gap:16px; flex-wrap:wrap; }
+  .header-left h1 { font-size:1.8rem; font-weight:800; letter-spacing:-0.03em; color:var(--text); }
+  .header-left p { font-family:var(--mono); font-size:0.72rem; color:var(--muted); margin-top:5px; }
+  .header-right { display:flex; flex-direction:column; align-items:flex-end; gap:5px; }
+  .btn-refresh { font-family:var(--mono); font-size:0.72rem; background:var(--c-total); border:none; color:#fff; padding:8px 16px; border-radius:6px; cursor:pointer; transition:all 0.2s; }
+  .btn-refresh:hover { background:#1d4ed8; }
+  .btn-refresh:disabled { opacity:0.4; cursor:not-allowed; }
+  .last-updated { font-family:var(--mono); font-size:0.65rem; color:var(--muted); }
+  .next-refresh  { font-family:var(--mono); font-size:0.62rem; color:var(--muted); }
+
+  /* Filter bar */
+  .filter-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 18px; margin-bottom:24px; box-shadow:var(--shadow); }
+  .filter-group { display:flex; align-items:center; gap:7px; }
+  .filter-label { font-family:var(--mono); font-size:0.68rem; color:var(--muted); white-space:nowrap; }
+  .filter-select { background:var(--surface2); border:1px solid var(--border); color:var(--text); font-family:var(--mono); font-size:0.72rem; padding:5px 10px; border-radius:6px; cursor:pointer; }
+  .filter-sep { width:1px; height:20px; background:var(--border); }
+  .filter-badge { margin-left:auto; font-family:var(--mono); font-size:0.65rem; background:#eff6ff; border:1px solid #bfdbfe; color:var(--c-total); padding:4px 12px; border-radius:4px; white-space:nowrap; }
+
+  /* Tabs */
+  .tabs { display:flex; gap:4px; margin-bottom:24px; border-bottom:2px solid var(--border); }
+  .tab-btn { font-family:var(--sans); font-size:0.82rem; font-weight:600; padding:10px 20px; border:none; background:none; cursor:pointer; color:var(--muted); border-bottom:2px solid transparent; margin-bottom:-2px; transition:all 0.15s; }
+  .tab-btn.active { color:var(--c-total); border-bottom-color:var(--c-total); }
+  .tab-btn:hover:not(.active) { color:var(--text2); }
+
+  /* Loading / Error */
+  #loading { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:80px 0; gap:16px; }
+  .spinner { width:36px; height:36px; border:2px solid var(--border); border-top-color:var(--c-total); border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  #loading p { font-family:var(--mono); font-size:0.75rem; color:var(--muted); }
+  #error-state { display:none; background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:24px; font-family:var(--mono); font-size:0.75rem; color:var(--c-backlog); }
+
+  /* KPIs */
+  .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:24px; }
+  .kpi-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; position:relative; overflow:hidden; box-shadow:var(--shadow); }
+  .kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--kpi-color); }
+  .kpi-label { font-family:var(--mono); font-size:0.63rem; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:8px; }
+  .kpi-value { font-size:2rem; font-weight:800; line-height:1; color:var(--kpi-color); }
+  .kpi-sub { font-family:var(--mono); font-size:0.66rem; color:var(--muted); margin-top:5px; }
+
+  /* Charts */
+  .charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:20px; }
+  @media(max-width:700px) { .charts-grid { grid-template-columns:1fr; } }
+  .chart-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px; box-shadow:var(--shadow); }
+  .chart-card.full { grid-column:1/-1; }
+  .chart-title { font-size:0.7rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-bottom:18px; display:flex; align-items:center; gap:8px; }
+  .chart-title .dot { width:6px; height:6px; border-radius:50%; display:inline-block; flex-shrink:0; }
+  .chart-wrap { position:relative; height:220px; }
+
+  /* Ranking table */
+  .member-table { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:0.74rem; }
+  .member-table th {
+    text-align:left; color:var(--muted); font-weight:500;
+    padding:9px 12px; border-bottom:2px solid var(--border);
+    letter-spacing:0.05em; font-size:0.64rem; text-transform:uppercase;
+    white-space:nowrap;
+  }
+  .member-table td { padding:10px 12px; border-bottom:1px solid var(--border); color:var(--text2); vertical-align:middle; }
+  .member-table tr:last-child td { border-bottom:none; }
+  .member-table tr:hover td { background:#f8f9fb; }
+
+  .rank-num { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; font-size:0.65rem; font-weight:700; background:var(--surface2); color:var(--muted); }
+  .rank-1 { background:#fef3c7; color:#92400e; }
+  .rank-2 { background:#f3f4f6; color:#374151; }
+  .rank-3 { background:#fde8d8; color:#9a3412; }
+
+  .badge { font-size:0.62rem; padding:2px 8px; border-radius:4px; font-weight:600; display:inline-block; }
+  .badge-done { background:#d1fae5; color:#065f46; }
+  .badge-ag   { background:#ede9fe; color:#5b21b6; }
+  .badge-rev  { background:#e0f2fe; color:#075985; }
+
+  .rate-bar-wrap { display:flex; align-items:center; gap:8px; }
+  .rate-bar-bg   { flex:1; height:6px; background:var(--surface2); border-radius:3px; overflow:hidden; min-width:70px; }
+  .rate-bar-fill { height:100%; border-radius:3px; }
+  .rate-val      { font-size:0.72rem; font-weight:700; white-space:nowrap; min-width:34px; text-align:right; }
+
+  /* ── Touchpoints ── */
+  #tab-touchpoints { display:none; }
+  .tp-filter-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 18px; margin-bottom:24px; box-shadow:var(--shadow); }
+  .week-nav { display:flex; align-items:center; gap:8px; }
+  .week-nav-btn { background:var(--surface2); border:1px solid var(--border); color:var(--text2); width:30px; height:30px; border-radius:6px; cursor:pointer; font-size:1rem; display:flex; align-items:center; justify-content:center; transition:all 0.15s; }
+  .week-nav-btn:hover { background:var(--border); }
+  .week-label { font-family:var(--mono); font-size:0.75rem; color:var(--text); font-weight:500; white-space:nowrap; }
+
+  .ka-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(360px,1fr)); gap:16px; }
+  .ka-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:var(--shadow); }
+  .ka-header { display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid var(--border); background:var(--surface2); }
+  .ka-avatar { width:38px; height:38px; border-radius:50%; color:#fff; font-weight:700; font-size:0.85rem; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .ka-name  { font-weight:700; font-size:0.9rem; color:var(--text); }
+  .ka-stats { font-family:var(--mono); font-size:0.65rem; color:var(--muted); margin-top:2px; }
+  .ka-progress { margin-left:auto; text-align:right; flex-shrink:0; }
+  .ka-pct { font-size:1.2rem; font-weight:800; }
+  .ka-pct.green  { color:var(--c-done); }
+  .ka-pct.yellow { color:var(--c-rate); }
+  .ka-pct.red    { color:var(--c-backlog); }
+  .ka-pct-label  { font-family:var(--mono); font-size:0.6rem; color:var(--muted); }
+
+  /* Client row — grid de 4 colunas fixas para alinhar tudo */
+  .client-list { padding:0; }
+  .client-row {
+    display:grid;
+    grid-template-columns: 14px 1fr auto auto;
+    align-items:center;
+    gap:10px;
+    padding:10px 18px;
+    border-bottom:1px solid var(--border);
+    transition:background 0.1s;
+  }
+  .client-row:last-child { border-bottom:none; }
+  .client-row:hover { background:#f8f9fb; }
+
+  .tp-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .tp-dot.ok      { background:#10b981; }
+  .tp-dot.missing { background:#ef4444; }
+
+  .client-name { font-size:0.78rem; color:var(--text2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* Bloco de info (data + card) empilhado verticalmente, alinhado à direita */
+  .tp-info { display:flex; flex-direction:column; align-items:flex-end; gap:2px; min-width:0; }
+  .tp-date { font-family:var(--mono); font-size:0.62rem; color:var(--muted); white-space:nowrap; }
+  .tp-card-name { font-family:var(--mono); font-size:0.60rem; color:#aab0bc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; }
+
+  .tp-status { font-family:var(--mono); font-size:0.62rem; font-weight:600; padding:2px 9px; border-radius:4px; white-space:nowrap; flex-shrink:0; }
+  .tp-status.ok      { background:#d1fae5; color:#065f46; }
+  .tp-status.missing { background:#fee2e2; color:#991b1b; }
+
+  .tp-empty { padding:16px 18px; text-align:center; font-family:var(--mono); font-size:0.72rem; color:var(--muted); }
+
+  #dashboard { display:none; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="header-left">
+      <h1>RANKME SMB</h1>
+      <p id="subtitle">Carregando dados do Trello...</p>
+    </div>
+    <div class="header-right">
+      <button class="btn-refresh" id="btn-refresh" onclick="loadData()" disabled>↻ Atualizar agora</button>
+      <span class="last-updated" id="last-updated"></span>
+      <span class="next-refresh"  id="next-refresh"></span>
+    </div>
+  </header>
+
+  <div id="loading"><div class="spinner"></div><p>Buscando dados do board...</p></div>
+  <div id="error-state"></div>
+
+  <div id="dashboard">
+
+    <div class="filter-bar">
+      <div class="filter-group">
+        <span class="filter-label">Mês</span>
+        <select class="filter-select" id="sel-month" onchange="onMonthChange()"></select>
+      </div>
+      <div class="filter-sep"></div>
+      <div class="filter-group">
+        <span class="filter-label">Semana</span>
+        <select class="filter-select" id="sel-week" onchange="render()"></select>
+      </div>
+      <div class="filter-sep"></div>
+      <div class="filter-group">
+        <span class="filter-label">Concluído na lista</span>
+        <select class="filter-select" id="done-select" onchange="render()"></select>
+      </div>
+      <span class="filter-badge" id="filter-badge">–</span>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('metrics')">📊 Métricas</button>
+      <button class="tab-btn"        onclick="switchTab('touchpoints')">✅ Touchpoints</button>
+    </div>
+
+    <!-- Tab Métricas -->
+    <div id="tab-metrics">
+      <div class="kpi-grid" id="kpi-grid"></div>
+
+      <div class="charts-grid">
+        <div class="chart-card full">
+          <div class="chart-title">
+            <span class="dot" style="background:var(--c-total)"></span>
+            <span id="volume-title">Volume de demandas</span>
+          </div>
+          <div class="chart-wrap"><canvas id="chart-volume"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title"><span class="dot" style="background:var(--c-backlog)"></span>Carga por membro</div>
+          <div class="chart-wrap"><canvas id="chart-members"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title"><span class="dot" style="background:var(--c-done)"></span>Cards por lista</div>
+          <div class="chart-wrap"><canvas id="chart-lists"></canvas></div>
+        </div>
+      </div>
+
+      <div class="chart-card" style="margin-bottom:24px">
+        <div class="chart-title">
+          <span class="dot" style="background:var(--c-rate)"></span>Ranking de eficiência por membro
+        </div>
+        <table class="member-table" id="member-table"></table>
+      </div>
+    </div>
+
+    <!-- Tab Touchpoints -->
+    <div id="tab-touchpoints">
+      <div class="tp-filter-bar">
+        <span class="filter-label">Semana:</span>
+        <div class="week-nav">
+          <button class="week-nav-btn" onclick="shiftTpWeek(-1)">‹</button>
+          <span class="week-label" id="tp-week-label">–</span>
+          <button class="week-nav-btn" onclick="shiftTpWeek(1)">›</button>
+        </div>
+        <span class="filter-badge" id="tp-badge" style="margin-left:0">–</span>
+      </div>
+      <div class="ka-grid" id="ka-grid"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API_KEY    = '143111088b24d37aa73ab9ef1eafff20';
+const TOKEN      = 'ATTAa4554323076d3559279b0b4bcdcd9bcbd10a81a3637486d4fa7e3e9b7e6b42f2D8AD0BBB';
+const BOARD_NAME = 'RANKME SMB';
+const BASE       = 'https://api.trello.com/1';
+
+const KAS = ['Victor Oliveira','Vinicius Soeiro','Sinthia Loiola','Matheus Maia','Alex Zeredo'];
+const KA_COLORS = {
+  'Victor Oliveira': '#2563eb',
+  'Vinicius Soeiro': '#7c3aed',
+  'Sinthia Loiola':  '#db2777',
+  'Matheus Maia':    '#059669',
+  'Alex Zeredo':     '#d97706',
+};
+
+const C_TOTAL   = '#2563eb';
+const C_DONE    = '#059669';
+const C_BACKLOG = '#dc2626';
+const C_RATE    = '#d97706';
+const C_AG      = '#7c3aed';
+const C_REV     = '#0891b2';
+
+const LIST_COLORS = [C_TOTAL, C_AG, C_DONE, C_RATE, C_BACKLOG, C_REV, '#ea580c', '#9333ea'];
+
+// Nomes parciais das listas de status intermediário
+const AG_PATTERN  = /ag[\.\s]*cliente|aguardando\s*cliente/i;
+const REV_PATTERN = /em\s*revis[aã]o|revis[aã]o/i;
+
+const TP_KEYWORDS = /touchpoint|reuni[aã]o\s*mensal|enviar.*relat[oó]rio|marcar\s*reuni[aã]o|relat[oó]rio\s*mensal/i;
+
+let boardData    = { lists:[], cards:[], members:[] };
+let charts       = {};
+let tpWeekOffset = 0;
+let refreshTimer = null;
+
+// ── Date helpers ─────────────────────────────────────────────
+function mondayOf(date) {
+  const d = new Date(date); d.setHours(0,0,0,0);
+  const day = d.getDay();
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  return d;
+}
+function isoDate(d) { return d.toISOString().slice(0,10); }
+function weekLabel(monStr) {
+  const mon = new Date(monStr+'T12:00:00');
+  const fri = new Date(mon); fri.setDate(fri.getDate()+4);
+  const fmt = d => d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
+  return `${fmt(mon)} – ${fmt(fri)}`;
+}
+function getWeekMonday(offset=0) {
+  const mon = mondayOf(new Date());
+  mon.setDate(mon.getDate() + offset*7);
+  return mon;
+}
+function fmtDate(dateStr) {
+  return new Date(dateStr).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'});
+}
+
+// ── API ──────────────────────────────────────────────────────
+async function trello(path) {
+  const sep = path.includes('?') ? '&' : '?';
+  const res = await fetch(`${BASE}${path}${sep}key=${API_KEY}&token=${TOKEN}`);
+  if (!res.ok) throw new Error(`Trello API ${res.status}: ${res.statusText}`);
+  return res.json();
+}
+
+// ── Load ─────────────────────────────────────────────────────
+async function loadData() {
+  document.getElementById('loading').style.display     = 'flex';
+  document.getElementById('dashboard').style.display   = 'none';
+  document.getElementById('error-state').style.display = 'none';
+  document.getElementById('btn-refresh').disabled = true;
+
+  try {
+    const boards = await trello('/members/me/boards?fields=name,id');
+    const board  = boards.find(b => b.name.trim().toLowerCase() === BOARD_NAME.toLowerCase());
+    if (!board) throw new Error(`Board "${BOARD_NAME}" não encontrado. Disponíveis: ${boards.map(b=>`"${b.name}"`).join(', ')}`);
+
+    const [lists, cards, members] = await Promise.all([
+      trello(`/boards/${board.id}/lists?fields=id,name`),
+      trello(`/boards/${board.id}/cards?fields=id,name,idList,idMembers,dateLastActivity,labels&filter=open`),
+      trello(`/boards/${board.id}/members?fields=id,fullName,username`),
+    ]);
+
+    boardData = { lists, cards, members };
+
+    // Done select — todas as listas como opção
+    const dsel = document.getElementById('done-select');
+    dsel.innerHTML = '';
+    lists.forEach(l => {
+      const o = document.createElement('option');
+      o.value = l.id; o.textContent = l.name;
+      if (/conclu|done|entregue|finaliz|pronto/i.test(l.name)) o.selected = true;
+      dsel.appendChild(o);
+    });
+
+    populateMonths(cards);
+
+    document.getElementById('subtitle').textContent     = `Board: ${board.name} · ${cards.length} cards ativos`;
+    document.getElementById('last-updated').textContent = `Atualizado às ${new Date().toLocaleTimeString('pt-BR')}`;
+    document.getElementById('loading').style.display    = 'none';
+    document.getElementById('dashboard').style.display  = 'block';
+    document.getElementById('btn-refresh').disabled     = false;
+
+    render();
+    renderTouchpoints();
+    startAutoRefresh();
+  } catch(err) {
+    document.getElementById('loading').style.display     = 'none';
+    document.getElementById('error-state').style.display = 'block';
+    document.getElementById('error-state').textContent   = '⚠ ' + err.message;
+    document.getElementById('btn-refresh').disabled      = false;
+  }
+}
+
+// ── Auto-refresh 1h ──────────────────────────────────────────
+function startAutoRefresh() {
+  clearInterval(refreshTimer);
+  let countdown = 3600;
+  refreshTimer = setInterval(() => {
+    countdown--;
+    const m = String(Math.floor(countdown/60)).padStart(2,'0');
+    const s = String(countdown%60).padStart(2,'0');
+    document.getElementById('next-refresh').textContent = `Próxima atualização em ${m}:${s}`;
+    if (countdown <= 0) { clearInterval(refreshTimer); loadData(); }
+  }, 1000);
+}
+
+// ── Month / week selectors ────────────────────────────────────
+function populateMonths(cards) {
+  const months = new Set();
+  cards.forEach(c => {
+    const d = new Date(c.dateLastActivity);
+    if (!isNaN(d)) months.add(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+  });
+  const sel = document.getElementById('sel-month');
+  sel.innerHTML = '<option value="all">Todos os meses</option>';
+  [...months].sort().reverse().forEach(m => {
+    const [y,mo] = m.split('-');
+    const o = document.createElement('option');
+    o.value = m;
+    o.textContent = new Date(y,mo-1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    sel.appendChild(o);
+  });
+  const now = new Date();
+  const cur = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  if ([...sel.options].find(o=>o.value===cur)) sel.value = cur;
+  onMonthChange();
+}
+
+function onMonthChange() {
+  const month = document.getElementById('sel-month').value;
+  const wsel  = document.getElementById('sel-week');
+  wsel.innerHTML = '<option value="all">Todas as semanas</option>';
+  if (month !== 'all') {
+    const [y,mo] = month.split('-').map(Number);
+    const weeks = new Set();
+    boardData.cards.forEach(c => {
+      const d = new Date(c.dateLastActivity);
+      if (!isNaN(d) && d.getFullYear()===y && d.getMonth()+1===mo)
+        weeks.add(isoDate(mondayOf(d)));
+    });
+    [...weeks].sort().forEach(mon => {
+      const o = document.createElement('option');
+      o.value = mon; o.textContent = weekLabel(mon);
+      wsel.appendChild(o);
+    });
+  }
+  render();
+}
+
+// ── Helpers de filtro ─────────────────────────────────────────
+function getFilteredCards() {
+  const month = document.getElementById('sel-month').value;
+  const week  = document.getElementById('sel-week').value;
+  return boardData.cards.filter(c => {
+    const d = new Date(c.dateLastActivity);
+    if (isNaN(d)) return false;
+    if (month !== 'all') {
+      const [y,mo] = month.split('-').map(Number);
+      if (d.getFullYear()!==y || d.getMonth()+1!==mo) return false;
+    }
+    if (week !== 'all' && isoDate(mondayOf(d))!==week) return false;
+    return true;
+  });
+}
+
+function getPeriodLabel() {
+  const month = document.getElementById('sel-month').value;
+  const week  = document.getElementById('sel-week').value;
+  if (month==='all') return 'Todos os períodos';
+  const [y,mo] = month.split('-');
+  const mLabel = new Date(y,mo-1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  return week==='all' ? mLabel : weekLabel(week);
+}
+
+// ── Tabs ──────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('tab-metrics').style.display     = tab==='metrics'     ? 'block' : 'none';
+  document.getElementById('tab-touchpoints').style.display = tab==='touchpoints' ? 'block' : 'none';
+  document.querySelectorAll('.tab-btn').forEach((b,i) =>
+    b.classList.toggle('active',(i===0&&tab==='metrics')||(i===1&&tab==='touchpoints')));
+}
+
+// ── Render métricas ───────────────────────────────────────────
+function render() {
+  const { lists, members } = boardData;
+  const cards   = getFilteredCards();
+  const doneIds = Array.from(document.getElementById('done-select').selectedOptions).map(o=>o.value);
+  const month   = document.getElementById('sel-month').value;
+  const week    = document.getElementById('sel-week').value;
+
+  document.getElementById('filter-badge').textContent = getPeriodLabel();
+
+  const memberMap = Object.fromEntries(members.map(m=>[m.id,m.fullName||m.username]));
+
+  // IDs das listas Ag. Cliente e Em Revisão
+  const agIds  = lists.filter(l => AG_PATTERN.test(l.name)).map(l=>l.id);
+  const revIds = lists.filter(l => REV_PATTERN.test(l.name)).map(l=>l.id);
+
+  const total   = cards.length;
+  const done    = cards.filter(c=>doneIds.includes(c.idList)).length;
+  const agCount = cards.filter(c=>agIds.includes(c.idList)).length;
+  const revCount= cards.filter(c=>revIds.includes(c.idList)).length;
+  const backlog = total - done;
+  const rate    = total ? Math.round((done/total)*100) : 0;
+
+  // KPIs
+  document.getElementById('kpi-grid').innerHTML = `
+    <div class="kpi-card" style="--kpi-color:${C_TOTAL}">
+      <div class="kpi-label">Total de cards</div>
+      <div class="kpi-value">${total}</div>
+      <div class="kpi-sub">no período selecionado</div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:${C_DONE}">
+      <div class="kpi-label">Concluídos</div>
+      <div class="kpi-value">${done}</div>
+      <div class="kpi-sub">na lista selecionada</div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:${C_BACKLOG}">
+      <div class="kpi-label">Backlog / Em aberto</div>
+      <div class="kpi-value">${backlog}</div>
+      <div class="kpi-sub">cards não concluídos</div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:${C_RATE}">
+      <div class="kpi-label">Taxa de conclusão</div>
+      <div class="kpi-value">${rate}%</div>
+      <div class="kpi-sub">do total no período</div>
+    </div>
+
+  `;
+
+  // Volume
+  const vMap = {};
+  cards.forEach(c => {
+    const d = new Date(c.dateLastActivity);
+    if (isNaN(d)) return;
+    if (week !== 'all' && (d.getDay()===0||d.getDay()===6)) return;
+    let key;
+    if (week !== 'all')       key = isoDate(d);
+    else if (month !== 'all') key = isoDate(mondayOf(d));
+    else                      key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    vMap[key] = (vMap[key]||0)+1;
+  });
+  const vKeys = Object.keys(vMap).sort();
+  const vLabels = vKeys.map(k => {
+    if (week!=='all')  return new Date(k+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit'});
+    if (month!=='all') return weekLabel(k);
+    const [y,mo] = k.split('-');
+    return new Date(y,mo-1).toLocaleDateString('pt-BR',{month:'short',year:'2-digit'});
+  });
+  document.getElementById('volume-title').textContent =
+    week!=='all'  ? 'Volume por dia (seg–sex)' :
+    month!=='all' ? 'Volume por semana (mês selecionado)' : 'Volume por mês';
+
+  renderChart('chart-volume','bar', vLabels,
+    [{ label:'Cards', data:vKeys.map(k=>vMap[k]),
+       backgroundColor:C_TOTAL+'b3', borderColor:C_TOTAL, borderWidth:1,
+       borderRadius:4, borderSkipped:false }]);
+
+  // Carga por membro
+  const mCount={}, mDone={}, mAg={}, mRev={};
+  cards.forEach(c => {
+    (c.idMembers||[]).forEach(mid => {
+      mCount[mid] = (mCount[mid]||0)+1;
+      if (doneIds.includes(c.idList)) mDone[mid] = (mDone[mid]||0)+1;
+      if (agIds.includes(c.idList))   mAg[mid]   = (mAg[mid]||0)+1;
+      if (revIds.includes(c.idList))  mRev[mid]  = (mRev[mid]||0)+1;
+    });
+  });
+  const mIds = Object.keys(mCount).sort((a,b) => {
+    const pA = mCount[a] ? (mDone[a]||0)/mCount[a] : 0;
+    const pB = mCount[b] ? (mDone[b]||0)/mCount[b] : 0;
+    return pB - pA;
+  }).slice(0,10);
+
+  renderChart('chart-members','bar', mIds.map(id=>(memberMap[id]||id).split(' ')[0]), [
+    { label:'Total',      data:mIds.map(id=>mCount[id]),   backgroundColor:C_BACKLOG+'b3', borderColor:C_BACKLOG, borderWidth:1, borderRadius:4, borderSkipped:false },
+    { label:'Concluídos', data:mIds.map(id=>mDone[id]||0), backgroundColor:C_DONE+'b3',   borderColor:C_DONE,    borderWidth:1, borderRadius:4, borderSkipped:false },
+  ], { indexAxis:'y' });
+
+  // Cards por lista
+  const byList = Object.fromEntries(lists.map(l=>[l.id,0]));
+  cards.forEach(c=>{ if(byList[c.idList]!==undefined) byList[c.idList]++; });
+  const active = lists.filter(l=>byList[l.id]>0);
+  renderChart('chart-lists','doughnut', active.map(l=>l.name),
+    [{ data:active.map(l=>byList[l.id]),
+       backgroundColor:active.map((_,i)=>LIST_COLORS[i%LIST_COLORS.length]+'cc'),
+       borderWidth:0, hoverOffset:6 }]);
+
+  // Ranking — Cards | Concluídos | Ag. Cliente | Em Revisão | Taxa
+  // Separar Luan do ranking principal
+  const LUAN_NAME = 'Luan Rodrigues';
+  const luanId = Object.keys(mCount).find(id => (memberMap[id]||'').toLowerCase().includes('luan'));
+
+  const rankIds = mIds.filter(id => !(memberMap[id]||'').toLowerCase().includes('luan'));
+
+  function memberRow(id, i, showRank = true) {
+    const name   = memberMap[id]||id.slice(0,10);
+    const t      = mCount[id]||0;
+    const d      = mDone[id]||0;
+    const ag     = mAg[id]||0;
+    const rev    = mRev[id]||0;
+    const pct    = t ? Math.round((d/t)*100) : 0;
+    const rColor = pct>=70 ? C_DONE : pct>=40 ? C_RATE : C_BACKLOG;
+    const rankCls = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
+    return `<tr>
+      <td>${showRank ? `<span class="rank-num ${rankCls}">${i+1}</span>` : `<span style="font-family:var(--mono);font-size:0.65rem;color:var(--muted)">–</span>`}</td>
+      <td style="font-weight:600;color:var(--text)">${name}</td>
+      <td style="color:${C_TOTAL};font-weight:600">${t}</td>
+      <td><span class="badge badge-done">${d}</span></td>
+      <td><span class="badge badge-ag">${ag}</span></td>
+      <td><span class="badge badge-rev">${rev}</span></td>
+      <td>
+        <div class="rate-bar-wrap">
+          <div class="rate-bar-bg">
+            <div class="rate-bar-fill" style="width:${pct}%;background:${rColor}"></div>
+          </div>
+          <span class="rate-val" style="color:${rColor}">${pct}%</span>
+        </div>
+      </td>
+    </tr>`;
+  }
+
+  const luanRow = luanId ? `
+    <tr>
+      <td colspan="7" style="padding:0">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface2);border-top:2px dashed var(--border);">
+          <span style="font-family:var(--mono);font-size:0.63rem;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase">Gestor</span>
+        </div>
+      </td>
+    </tr>
+    ${memberRow(luanId, 0, false)}
+  ` : '';
+
+  document.getElementById('member-table').innerHTML = `
+    <thead><tr>
+      <th>#</th>
+      <th>Membro</th>
+      <th style="color:${C_TOTAL}">Cards</th>
+      <th style="color:${C_DONE}">Concluídos</th>
+      <th style="color:${C_AG}">Ag. Cliente</th>
+      <th style="color:${C_REV}">Em Revisão</th>
+      <th style="min-width:150px;color:${C_RATE}">Taxa</th>
+    </tr></thead>
+    <tbody>
+    ${rankIds.length ? rankIds.map((id,i) => memberRow(id,i,true)).join('') : `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:20px">Nenhum card com membro atribuído no período.</td></tr>`}
+    ${luanRow}
+    </tbody>`;
+}
+
+// ── Touchpoints ───────────────────────────────────────────────
+function shiftTpWeek(delta) { tpWeekOffset += delta; renderTouchpoints(); }
+
+function getClientFromCard(card) {
+  const labels = card.labels || [];
+  const yellow = labels.find(l => l.color && /yellow|lime|orange/i.test(l.color));
+  if (yellow && yellow.name) return yellow.name;
+  const match = card.name.match(/[-–]\s*(.+)$/);
+  return match ? match[1].trim() : null;
+}
+
+function renderTouchpoints() {
+  const mon = getWeekMonday(tpWeekOffset);
+  const fri = new Date(mon); fri.setDate(fri.getDate()+4); fri.setHours(23,59,59,999);
+  const monStr = isoDate(mon);
+
+  document.getElementById('tp-week-label').textContent = weekLabel(monStr);
+  document.getElementById('tp-badge').textContent =
+    tpWeekOffset===0  ? 'Semana atual' :
+    tpWeekOffset===-1 ? 'Semana passada' :
+    tpWeekOffset<0    ? `${Math.abs(tpWeekOffset)} semanas atrás` : `+${tpWeekOffset} semanas`;
+
+  const memberMap = Object.fromEntries(boardData.members.map(m=>[m.id,m.fullName||m.username]));
+
+  // Cards de TP na semana
+  const tpCards = boardData.cards.filter(c => {
+    if (!TP_KEYWORDS.test(c.name)) return false;
+    const d = new Date(c.dateLastActivity);
+    return !isNaN(d) && d >= mon && d <= fri;
+  });
+
+  // Todos os clientes por KA (de todo o board)
+  const kaClients = {};
+  KAS.forEach(ka => kaClients[ka] = new Set());
+  boardData.cards.forEach(c => {
+    const client = getClientFromCard(c);
+    if (!client) return;
+    (c.idMembers||[]).forEach(mid => {
+      const name = memberMap[mid];
+      if (name && KAS.includes(name)) kaClients[name].add(client);
+    });
+  });
+
+  // Touchpoints feitos na semana por KA → cliente
+  const tpDone = {};
+  KAS.forEach(ka => tpDone[ka] = {});
+  tpCards.forEach(c => {
+    const client = getClientFromCard(c);
+    if (!client) return;
+    (c.idMembers||[]).forEach(mid => {
+      const name = memberMap[mid];
+      if (name && KAS.includes(name)) {
+        tpDone[name][client] = { cardName: c.name, date: c.dateLastActivity };
+      }
+    });
+  });
+
+  const hasClients = KAS.some(ka => kaClients[ka].size > 0);
+
+  document.getElementById('ka-grid').innerHTML = KAS.map(ka => {
+    const clients   = hasClients ? [...kaClients[ka]].sort() : [];
+    const done      = tpDone[ka];
+    const doneCount = Object.keys(done).length;
+    const totalC    = clients.length;
+    const pct       = totalC ? Math.round((doneCount/totalC)*100) : 0;
+    const pctClass  = pct>=80?'green':pct>=50?'yellow':'red';
+    const initials  = ka.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const color     = KA_COLORS[ka]||'#6b7280';
+
+    let rows = '';
+    if (hasClients && clients.length) {
+      rows = clients.map(client => {
+        const info = done[client];
+        const ok   = !!info;
+        return `<div class="client-row">
+          <span class="tp-dot ${ok?'ok':'missing'}"></span>
+          <span class="client-name">${client}</span>
+          <div class="tp-info">
+            ${ok ? `<span class="tp-date">${fmtDate(info.date)}</span>
+                    <span class="tp-card-name" title="${info.cardName}">${info.cardName}</span>` : ''}
+          </div>
+          <span class="tp-status ${ok?'ok':'missing'}">${ok?'✓ feito':'✗ pendente'}</span>
+        </div>`;
+      }).join('');
+    } else {
+      // fallback: mostrar apenas cards encontrados
+      const myCards = tpCards.filter(c=>(c.idMembers||[]).some(mid=>memberMap[mid]===ka));
+      if (myCards.length) {
+        rows = myCards.map(c => {
+          const client = getClientFromCard(c)||c.name;
+          return `<div class="client-row">
+            <span class="tp-dot ok"></span>
+            <span class="client-name">${client}</span>
+            <div class="tp-info">
+              <span class="tp-date">${fmtDate(c.dateLastActivity)}</span>
+              <span class="tp-card-name" title="${c.name}">${c.name}</span>
+            </div>
+            <span class="tp-status ok">✓ feito</span>
+          </div>`;
+        }).join('');
+      } else {
+        rows = `<div class="tp-empty">Nenhum touchpoint encontrado</div>`;
+      }
+    }
+
+    return `
+      <div class="ka-card">
+        <div class="ka-header">
+          <div class="ka-avatar" style="background:${color}">${initials}</div>
+          <div>
+            <div class="ka-name">${ka}</div>
+            <div class="ka-stats">${hasClients && totalC ? `${doneCount}/${totalC} clientes` : `${doneCount} touchpoint(s)`} · semana</div>
+          </div>
+          ${hasClients && totalC ? `
+          <div class="ka-progress">
+            <div class="ka-pct ${pctClass}">${pct}%</div>
+            <div class="ka-pct-label">touchpoints</div>
+          </div>` : ''}
+        </div>
+        <div class="client-list">${rows}</div>
+      </div>`;
+  }).join('');
+}
+
+// ── Chart renderer ────────────────────────────────────────────
+function renderChart(id, type, labels, datasets, extra={}) {
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
+    type, data:{ labels, datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#6b7280', font:{ family:'DM Mono', size:11 }, boxWidth:10 } } },
+      scales: type==='doughnut' ? {} : {
+        x:{ ticks:{ color:'#9ca3af', font:{ family:'DM Mono', size:10 } }, grid:{ color:'#f3f4f6' } },
+        y:{ ticks:{ color:'#9ca3af', font:{ family:'DM Mono', size:10 } }, grid:{ color:'#f3f4f6' } },
+      },
+      ...extra,
+    }
+  });
+}
+
+loadData();
+</script>
+</body>
+</html>
