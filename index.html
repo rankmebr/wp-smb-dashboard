@@ -645,17 +645,24 @@ function renderTouchpoints() {
 
   const memberMap = Object.fromEntries(boardData.members.map(m=>[m.id,m.fullName||m.username]));
 
-  // Cards de TP na semana
+  // IDs das listas que representam "concluído"
+  const doneListIds = Array.from(document.getElementById('done-select').selectedOptions).map(o=>o.value);
+
+  // Cards de TP que são de touchpoint E estão na lista Concluído
+  // E tiveram atividade na semana selecionada
   const tpCards = boardData.cards.filter(c => {
     if (!TP_KEYWORDS.test(c.name)) return false;
+    if (!doneListIds.includes(c.idList)) return false; // só concluídos
     const d = new Date(c.dateLastActivity);
     return !isNaN(d) && d >= mon && d <= fri;
   });
 
-  // Todos os clientes por KA (de todo o board)
+  // Todos os clientes por KA — varrer TODOS os cards de TP do board (qualquer lista)
+  // para montar a lista completa de clientes por KA
   const kaClients = {};
   KAS.forEach(ka => kaClients[ka] = new Set());
   boardData.cards.forEach(c => {
+    if (!TP_KEYWORDS.test(c.name)) return; // só cards de touchpoint
     const client = getClientFromCard(c);
     if (!client) return;
     (c.idMembers||[]).forEach(mid => {
@@ -664,7 +671,7 @@ function renderTouchpoints() {
     });
   });
 
-  // Touchpoints feitos na semana por KA → cliente
+  // Touchpoints CONCLUÍDOS na semana por KA → cliente
   const tpDone = {};
   KAS.forEach(ka => tpDone[ka] = {});
   tpCards.forEach(c => {
