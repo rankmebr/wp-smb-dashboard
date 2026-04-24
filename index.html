@@ -330,7 +330,7 @@ async function loadData() {
 
     const [lists, cards, members] = await Promise.all([
       trello(`/boards/${board.id}/lists?fields=id,name`),
-      trello(`/boards/${board.id}/cards?fields=id,name,idList,idMembers,dateLastActivity,labels&filter=open`),
+      trello(`/boards/${board.id}/cards?fields=id,name,idList,idMembers,dateLastActivity,due,dueComplete,labels&filter=open`),
       trello(`/boards/${board.id}/members?fields=id,fullName,username`),
     ]);
 
@@ -648,47 +648,44 @@ function renderTouchpoints() {
   // IDs das listas que representam "concluído"
   const doneListIds = Array.from(document.getElementById('done-select').selectedOptions).map(o=>o.value);
 
-  // Cards de TP que são de touchpoint E estão na lista Concluído
-  // E tiveram atividade na semana selecionada
-  const tpCards = boardData.cards.filter(c => {
-    if (!TP_KEYWORDS.test(c.name)) return false;
-    if (!doneListIds.includes(c.idList)) return false; // só concluídos
-    const d = new Date(c.dateLastActivity);
-    return !isNaN(d) && d >= mon && d <= fri;
-  });
+  // Todos os cards de touchpoint do board
+  const allTpCards = boardData.cards.filter(c => TP_KEYWORDS.test(c.name));
 
-  // Todos os clientes por KA — varrer TODOS os cards de TP do board (qualquer lista)
-  // para montar a lista completa de clientes por KA
+  // Clientes por KA nesta semana = cards de TP com due date na semana selecionada
   const kaClients = {};
-  KAS.forEach(ka => kaClients[ka] = new Set());
-  boardData.cards.forEach(c => {
-    if (!TP_KEYWORDS.test(c.name)) return; // só cards de touchpoint
-    const client = getClientFromCard(c);
-    if (!client) return;
-    (c.idMembers||[]).forEach(mid => {
-      const name = memberMap[mid];
-      if (name && KAS.includes(name)) kaClients[name].add(client);
-    });
-  });
+  KAS.forEach(ka => kaClients[ka] = new Map()); // client -> card
 
-  // Touchpoints CONCLUÍDOS na semana por KA → cliente
-  const tpDone = {};
-  KAS.forEach(ka => tpDone[ka] = {});
-  tpCards.forEach(c => {
+  allTpCards.forEach(c => {
+    const due = c.due ? new Date(c.due) : null;
+    if (!due || isNaN(due)) return;
+    if (due < mon || due > fri) return; // due date fora da semana → ignora
     const client = getClientFromCard(c);
     if (!client) return;
     (c.idMembers||[]).forEach(mid => {
       const name = memberMap[mid];
       if (name && KAS.includes(name)) {
-        tpDone[name][client] = { cardName: c.name, date: c.dateLastActivity };
+        // se já existe um card para esse cliente, manter o mais recente
+        if (!kaClients[name].has(client)) kaClients[name].set(client, c);
       }
     });
   });
 
-  const hasClients = KAS.some(ka => kaClients[ka].size > 0);
+  // Touchpoints CONCLUÍDOS = card está na lista Concluído
+  const tpDone = {};
+  KAS.forEach(ka => tpDone[ka] = {});
+  KAS.forEach(ka => {
+    kaClients[ka].forEach((card, client) => {
+      if (doneListIds.includes(card.idList)) {
+        tpDone[ka][client] = {
+          cardName: card.name,
+          date: card.dateLastActivity, // data em que foi concluído
+        };
+      }
+    });
+  });
 
   document.getElementById('ka-grid').innerHTML = KAS.map(ka => {
-    const clients   = hasClients ? [...kaClients[ka]].sort() : [];
+    const clients   = [...kaClients[ka].keys()].sort();
     const done      = tpDone[ka];
     const doneCount = Object.keys(done).length;
     const totalC    = clients.length;
@@ -698,7 +695,7 @@ function renderTouchpoints() {
     const color     = KA_COLORS[ka]||'#6b7280';
 
     let rows = '';
-    if (hasClients && clients.length) {
+    if (clients.length) {
       rows = clients.map(client => {
         const info = done[client];
         const ok   = !!info;
@@ -713,24 +710,7 @@ function renderTouchpoints() {
         </div>`;
       }).join('');
     } else {
-      // fallback: mostrar apenas cards encontrados
-      const myCards = tpCards.filter(c=>(c.idMembers||[]).some(mid=>memberMap[mid]===ka));
-      if (myCards.length) {
-        rows = myCards.map(c => {
-          const client = getClientFromCard(c)||c.name;
-          return `<div class="client-row">
-            <span class="tp-dot ok"></span>
-            <span class="client-name">${client}</span>
-            <div class="tp-info">
-              <span class="tp-date">${fmtDate(c.dateLastActivity)}</span>
-              <span class="tp-card-name" title="${c.name}">${c.name}</span>
-            </div>
-            <span class="tp-status ok">✓ feito</span>
-          </div>`;
-        }).join('');
-      } else {
-        rows = `<div class="tp-empty">Nenhum touchpoint encontrado</div>`;
-      }
+      rows = `<div class="tp-empty">Nenhum touchpoint com vencimento nesta semana</div>`;
     }
 
     return `
@@ -739,9 +719,9 @@ function renderTouchpoints() {
           <div class="ka-avatar" style="background:${color}">${initials}</div>
           <div>
             <div class="ka-name">${ka}</div>
-            <div class="ka-stats">${hasClients && totalC ? `${doneCount}/${totalC} clientes` : `${doneCount} touchpoint(s)`} · semana</div>
+            <div class="ka-stats">${totalC ? `${doneCount}/${totalC} clientes` : 'sem touchpoints'} · semana</div>
           </div>
-          ${hasClients && totalC ? `
+          ${totalC ? `
           <div class="ka-progress">
             <div class="ka-pct ${pctClass}">${pct}%</div>
             <div class="ka-pct-label">touchpoints</div>
