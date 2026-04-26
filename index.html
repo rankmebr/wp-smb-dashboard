@@ -211,8 +211,6 @@
   .overdue-table tr:last-child td { border-bottom:none; }
   .overdue-table tr:hover td { background:#fff5f5; }
   .overdue-days { font-size:0.65rem; font-weight:700; padding:2px 8px; border-radius:4px; background:#fee2e2; color:#991b1b; white-space:nowrap; }
-  .overdue-ka { font-size:0.65rem; padding:2px 8px; border-radius:4px; background:#eff6ff; color:#1d4ed8; font-weight:600; }
-  .overdue-client { font-size:0.65rem; padding:2px 8px; border-radius:4px; background:#f0fdf4; color:#15803d; font-weight:600; }
   .review-card { background:var(--surface); border:1px solid #bfdbfe; border-radius:12px; padding:22px; box-shadow:var(--shadow); margin-bottom:24px; }
   .review-table { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:0.74rem; }
   .review-table th { text-align:left; color:var(--muted); font-weight:500; padding:8px 12px; border-bottom:2px solid #bfdbfe; letter-spacing:0.05em; font-size:0.65rem; text-transform:uppercase; white-space:nowrap; }
@@ -312,7 +310,6 @@
           <table class="overdue-table" id="overdue-table"></table>
         </div>
       </div>
-    </div>
 
       <!-- Tabela em revisão -->
       <div class="review-card" id="review-section" style="display:none">
@@ -325,6 +322,7 @@
           <table class="review-table" id="review-table"></table>
         </div>
       </div>
+
     </div>
 
     <!-- Tab Touchpoints -->
@@ -724,25 +722,69 @@ function render() {
     ${rankIds.length ? rankIds.map((id,i) => memberRow(id,i,true)).join('') : `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:20px">Nenhum card com membro atribuído no período.</td></tr>`}
     ${luanRow}
     </tbody>`;
-  // Tabela de atrasados
+  // Tabela de atrasados (async — não bloqueia o render)
   renderOverdue(cards, doneIds, memberMap);
 }
 
 // ── Tabela de atrasados ──────────────────────────────────────
-function renderOverdue(cards, doneIds, memberMap) {
-  const now = new Date();
-  const overdueCards = cards.filter(c => {
-    if (!c.due || c.dueComplete) return false;
-    if (doneIds.includes(c.idList)) return false;
-    return new Date(c.due) < now;
-  }).sort((a,b) => new Date(a.due) - new Date(b.due)); // mais antigo primeiro
+async function renderOverdue(cards, doneIds, memberMap) {
+  const now      = new Date();
+  const daysDiff = d => Math.floor((now - new Date(d)) / 86400000);
+  const fmtDue   = d => new Date(d).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'});
+  const isValid  = d => d instanceof Date && !isNaN(d);
+
+  // Candidatos: não concluídos, não na lista done, com due date atual vencida
+  // OU que tinham due date vencida e mudaram depois
+  const candidates = cards.filter(c => !c.dueComplete && !doneIds.includes(c.idList) && c.due);
+
+  const rows = (await Promise.all(candidates.map(async c => {
+    const currentDue = new Date(c.due);
+    let effectiveDue = currentDue;
+
+    try {
+      const actions = await trello('/cards/' + c.id + '/actions?filter=updateCard&limit=50');
+      // Filtrar só mudanças de due date que tenham old.due válido
+      const dueMoves = actions.filter(a =>
+        a.data && a.data.old && a.data.old.due
+      );
+      // Ordenar do mais antigo ao mais recente
+      dueMoves.sort((a,b) => new Date(a.date) - new Date(b.date));
+
+      if (dueMoves.length) {
+        // Due date original = valor 'old.due' da mudança mais antiga
+        const firstOldDue = new Date(dueMoves[0].data.old.due);
+        if (isValid(firstOldDue)) {
+          // Reconstruir: percorrer mudanças e parar quando uma foi feita após o vencimento vigente
+          let runningDue = firstOldDue;
+          let froze = false;
+          for (const action of dueMoves) {
+            const changedAt  = new Date(action.date);
+            const dueBefore  = new Date(action.data.old.due);
+            const cardData   = action.data.card || {};
+            const dueAfter   = cardData.due ? new Date(cardData.due) : null;
+            if (!isValid(dueBefore)) continue;
+            // Mudança feita APÓS ou NO dia do vencimento → congela aqui
+            if (changedAt >= dueBefore) {
+              effectiveDue = dueBefore;
+              froze = true;
+              break;
+            }
+            // Mudança legítima (antes do vencimento) → avança
+            if (dueAfter && isValid(dueAfter)) runningDue = dueAfter;
+          }
+          if (!froze) effectiveDue = runningDue;
+        }
+      }
+    } catch(e) {}
+
+    // Só inclui se a due date efetiva já venceu
+    if (!isValid(effectiveDue) || effectiveDue >= now) return null;
+    return { card: c, effectiveDue };
+  }))).filter(Boolean).sort((a,b) => a.effectiveDue - b.effectiveDue);
 
   const section = document.getElementById('overdue-section');
-  section.style.display = overdueCards.length ? 'block' : 'none';
-  if (!overdueCards.length) return;
-
-  const daysDiff = d => Math.floor((now - new Date(d)) / 86400000);
-  const fmtDue = d => new Date(d).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'});
+  section.style.display = rows.length ? 'block' : 'none';
+  if (!rows.length) return;
 
   document.getElementById('overdue-table').innerHTML =
     '<thead><tr>'
@@ -752,15 +794,15 @@ function renderOverdue(cards, doneIds, memberMap) {
     + '<th>Deveria entregar</th>'
     + '<th>Atraso</th>'
     + '</tr></thead><tbody>'
-    + overdueCards.map(c => {
+    + rows.map(({card:c, effectiveDue}) => {
         const client = getClientFromCard(c) || '—';
-        const kas = (c.idMembers||[]).map(mid => (memberMap[mid]||'').split(' ')[0]).filter(Boolean).join(', ') || '—';
-        const days = daysDiff(c.due);
+        const resp   = (c.idMembers||[]).map(mid=>(memberMap[mid]||'').split(' ')[0]).filter(Boolean).join(', ') || '—';
+        const days   = daysDiff(effectiveDue);
         return '<tr>'
           + '<td style="font-weight:600;color:var(--text)">' + c.name + '</td>'
-          + '<td><span class="overdue-client">' + client + '</span></td>'
-          + '<td><span class="overdue-ka">' + kas + '</span></td>'
-          + '<td style="font-family:var(--mono);font-size:0.72rem">' + fmtDue(c.due) + '</td>'
+          + '<td style="font-family:var(--mono);font-size:0.72rem;color:var(--muted)">' + client + '</td>'
+          + '<td style="font-family:var(--mono);font-size:0.72rem;color:var(--muted)">' + resp + '</td>'
+          + '<td style="font-family:var(--mono);font-size:0.72rem">' + fmtDue(effectiveDue) + '</td>'
           + '<td><span class="overdue-days">' + days + 'd</span></td>'
           + '</tr>';
       }).join('')
@@ -814,8 +856,8 @@ async function renderReview() {
     + rows.map(r =>
         '<tr>'
         + '<td style="font-weight:600;color:var(--text)">' + r.name + '</td>'
-        + '<td><span class="overdue-client">' + r.client + '</span></td>'
-        + '<td><span class="overdue-ka">' + r.kas + '</span></td>'
+        + '<td style="font-family:var(--mono);font-size:0.72rem;color:var(--muted)">' + r.client + '</td>'
+        + '<td style="font-family:var(--mono);font-size:0.72rem;color:var(--muted)">' + r.kas + '</td>'
         + '<td style="font-family:var(--mono);font-size:0.72rem">' + fmtDate(r.enteredAt) + '</td>'
         + '<td><span class="review-days ' + r.daysCls + '">' + r.days + 'd</span></td>'
         + '</tr>'
