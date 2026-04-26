@@ -48,6 +48,52 @@
   .filter-sep { width:1px; height:20px; background:var(--border); }
   .filter-badge { margin-left:auto; font-family:var(--mono); font-size:0.65rem; background:#eff6ff; border:1px solid #bfdbfe; color:var(--c-total); padding:4px 12px; border-radius:4px; white-space:nowrap; }
 
+  /* ── Mobile ── */
+  @media(max-width:600px) {
+    .container { padding:20px 16px; }
+
+    header { flex-direction:column; align-items:center; text-align:center; margin-bottom:20px; gap:8px; }
+    .header-left h1 { font-size:1.5rem; }
+    .header-right { align-items:center; width:100%; }
+    .btn-refresh { width:100%; padding:10px 16px; font-size:0.75rem; }
+
+    .filter-bar { flex-direction:column; align-items:stretch; gap:10px; padding:14px 16px; }
+    .filter-sep { display:none; }
+    .filter-group { flex-direction:column; align-items:flex-start; gap:4px; width:100%; }
+    .filter-select { width:100%; font-size:0.8rem; padding:8px 10px; }
+    .filter-badge { margin-left:0; text-align:center; }
+
+    .kpi-grid { grid-template-columns:1fr 1fr; gap:10px; }
+    .kpi-value { font-size:1.6rem; }
+
+    .tab-btn { font-size:0.75rem; padding:8px 14px; }
+
+    .charts-grid { grid-template-columns:1fr; }
+
+    /* Charts: scroll lateral DENTRO do card branco */
+    .chart-card { padding:16px; overflow:hidden; }
+    .chart-wrap { overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; height:auto; }
+    .chart-wrap canvas { min-width:460px; height:200px !important; display:block; }
+
+    /* Doughnut cabe na tela sem scroll */
+    .doughnut-wrap { overflow:visible !important; }
+    .doughnut-wrap canvas { min-width:unset !important; width:100% !important; height:220px !important; }
+
+    /* Ranking: scroll lateral DENTRO do card branco */
+    .member-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .member-table { min-width:500px; }
+
+    .ka-grid { grid-template-columns:1fr; }
+    .client-row { gap:6px; padding:9px 12px; }
+    .tp-card-name { max-width:80px; }
+
+    /* Semana atual ocupa 100% no mobile */
+    .tp-filter-bar { flex-direction:column; align-items:stretch; gap:10px; }
+    .week-nav { justify-content:space-between; width:100%; }
+    .week-label { flex:1; text-align:center; }
+    #tp-badge { width:100%; text-align:center; margin-left:0; }
+  }
+
   /* Tabs */
   .tabs { display:flex; gap:4px; margin-bottom:24px; border-bottom:2px solid var(--border); }
   .tab-btn { font-family:var(--sans); font-size:0.82rem; font-weight:600; padding:10px 20px; border:none; background:none; cursor:pointer; color:var(--muted); border-bottom:2px solid transparent; margin-bottom:-2px; transition:all 0.15s; }
@@ -157,6 +203,32 @@
 
   .tp-empty { padding:16px 18px; text-align:center; font-family:var(--mono); font-size:0.72rem; color:var(--muted); }
 
+  /* Tabela de atrasados */
+  .overdue-card { background:var(--surface); border:1px solid #fecaca; border-radius:12px; padding:22px; box-shadow:var(--shadow); margin-bottom:24px; }
+  .overdue-table { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:0.74rem; }
+  .overdue-table th { text-align:left; color:var(--muted); font-weight:500; padding:8px 12px; border-bottom:2px solid #fecaca; letter-spacing:0.05em; font-size:0.65rem; text-transform:uppercase; white-space:nowrap; }
+  .overdue-table td { padding:10px 12px; border-bottom:1px solid #fee2e2; color:var(--text2); vertical-align:middle; }
+  .overdue-table tr:last-child td { border-bottom:none; }
+  .overdue-table tr:hover td { background:#fff5f5; }
+  .overdue-days { font-size:0.65rem; font-weight:700; padding:2px 8px; border-radius:4px; background:#fee2e2; color:#991b1b; white-space:nowrap; }
+  .overdue-ka { font-size:0.65rem; padding:2px 8px; border-radius:4px; background:#eff6ff; color:#1d4ed8; font-weight:600; }
+  .overdue-client { font-size:0.65rem; padding:2px 8px; border-radius:4px; background:#f0fdf4; color:#15803d; font-weight:600; }
+  .review-card { background:var(--surface); border:1px solid #bfdbfe; border-radius:12px; padding:22px; box-shadow:var(--shadow); margin-bottom:24px; }
+  .review-table { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:0.74rem; }
+  .review-table th { text-align:left; color:var(--muted); font-weight:500; padding:8px 12px; border-bottom:2px solid #bfdbfe; letter-spacing:0.05em; font-size:0.65rem; text-transform:uppercase; white-space:nowrap; }
+  .review-table td { padding:10px 12px; border-bottom:1px solid #dbeafe; color:var(--text2); vertical-align:middle; }
+  .review-table tr:last-child td { border-bottom:none; }
+  .review-table tr:hover td { background:#eff6ff; }
+  .review-days { font-size:0.65rem; font-weight:700; padding:2px 8px; border-radius:4px; white-space:nowrap; }
+  .review-days.ok     { background:#dcfce7; color:#15803d; }
+  .review-days.warn   { background:#fef9c3; color:#854d0e; }
+  .review-days.danger { background:#fee2e2; color:#991b1b; }
+  @media(max-width:600px) {
+    .overdue-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .overdue-table { min-width:480px; }
+    .review-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .review-table { min-width:480px; }
+  }
   #dashboard { display:none; }
 </style>
 </head>
@@ -180,6 +252,8 @@
 
   <div id="dashboard">
 
+    <select id="done-select" style="display:none" onchange="render()"></select>
+
     <div class="filter-bar">
       <div class="filter-group">
         <span class="filter-label">Mês</span>
@@ -190,11 +264,7 @@
         <span class="filter-label">Semana</span>
         <select class="filter-select" id="sel-week" onchange="render()"></select>
       </div>
-      <div class="filter-sep"></div>
-      <div class="filter-group">
-        <span class="filter-label">Concluído na lista</span>
-        <select class="filter-select" id="done-select" onchange="render()"></select>
-      </div>
+
       <span class="filter-badge" id="filter-badge">–</span>
     </div>
 
@@ -221,7 +291,7 @@
         </div>
         <div class="chart-card">
           <div class="chart-title"><span class="dot" style="background:var(--c-done)"></span>Cards por lista</div>
-          <div class="chart-wrap"><canvas id="chart-lists"></canvas></div>
+          <div class="chart-wrap doughnut-wrap"><canvas id="chart-lists"></canvas></div>
         </div>
       </div>
 
@@ -229,7 +299,31 @@
         <div class="chart-title">
           <span class="dot" style="background:var(--c-rate)"></span>Ranking de eficiência por membro
         </div>
-        <table class="member-table" id="member-table"></table>
+        <div class="member-table-wrap"><table class="member-table" id="member-table"></table></div>
+      </div>
+
+      <!-- Tabela de atrasados -->
+      <div class="overdue-card" id="overdue-section">
+        <div class="chart-title" style="color:#dc2626;margin-bottom:16px">
+          <span class="dot" style="background:#ef4444"></span>
+          Cards atrasados
+        </div>
+        <div class="overdue-table-wrap">
+          <table class="overdue-table" id="overdue-table"></table>
+        </div>
+      </div>
+    </div>
+
+      <!-- Tabela em revisão -->
+      <div class="review-card" id="review-section" style="display:none">
+        <div class="chart-title" style="color:#2563eb;margin-bottom:4px">
+          <span class="dot" style="background:#2563eb"></span>
+          Cards aguardando revisão
+        </div>
+        <p style="font-family:var(--mono);font-size:0.68rem;color:var(--muted);margin-bottom:16px">Tempo desde que o card entrou na lista "Em Revisão"</p>
+        <div class="review-table-wrap">
+          <table class="review-table" id="review-table"></table>
+        </div>
       </div>
     </div>
 
@@ -356,6 +450,7 @@ async function loadData() {
 
     render();
     renderTouchpoints();
+    renderReview();
     startAutoRefresh();
   } catch(err) {
     document.getElementById('loading').style.display     = 'none';
@@ -470,12 +565,18 @@ function render() {
   const agIds  = lists.filter(l => AG_PATTERN.test(l.name)).map(l=>l.id);
   const revIds = lists.filter(l => REV_PATTERN.test(l.name)).map(l=>l.id);
 
+  const now     = new Date();
   const total   = cards.length;
   const done    = cards.filter(c=>doneIds.includes(c.idList)).length;
   const agCount = cards.filter(c=>agIds.includes(c.idList)).length;
   const revCount= cards.filter(c=>revIds.includes(c.idList)).length;
   const backlog = total - done;
   const rate    = total ? Math.round((done/total)*100) : 0;
+  const overdue = cards.filter(c => {
+    if (!c.due || c.dueComplete) return false;
+    if (doneIds.includes(c.idList)) return false;
+    return new Date(c.due) < now;
+  }).length;
 
   // KPIs
   document.getElementById('kpi-grid').innerHTML = `
@@ -499,7 +600,11 @@ function render() {
       <div class="kpi-value">${rate}%</div>
       <div class="kpi-sub">do total no período</div>
     </div>
-
+    <div class="kpi-card" style="--kpi-color:#ef4444">
+      <div class="kpi-label">⚠ Atrasados</div>
+      <div class="kpi-value">${overdue}</div>
+      <div class="kpi-sub">com due date vencida</div>
+    </div>
   `;
 
   // Volume
@@ -551,7 +656,7 @@ function render() {
     { label:'Concluídos', data:mIds.map(id=>mDone[id]||0), backgroundColor:C_DONE+'b3',   borderColor:C_DONE,    borderWidth:1, borderRadius:4, borderSkipped:false },
   ], { indexAxis:'y' });
 
-  // Cards por lista
+  // Cards por lista — chamada normal + renderiza tabela de atrasados
   const byList = Object.fromEntries(lists.map(l=>[l.id,0]));
   cards.forEach(c=>{ if(byList[c.idList]!==undefined) byList[c.idList]++; });
   const active = lists.filter(l=>byList[l.id]>0);
@@ -619,6 +724,103 @@ function render() {
     ${rankIds.length ? rankIds.map((id,i) => memberRow(id,i,true)).join('') : `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:20px">Nenhum card com membro atribuído no período.</td></tr>`}
     ${luanRow}
     </tbody>`;
+  // Tabela de atrasados
+  renderOverdue(cards, doneIds, memberMap);
+}
+
+// ── Tabela de atrasados ──────────────────────────────────────
+function renderOverdue(cards, doneIds, memberMap) {
+  const now = new Date();
+  const overdueCards = cards.filter(c => {
+    if (!c.due || c.dueComplete) return false;
+    if (doneIds.includes(c.idList)) return false;
+    return new Date(c.due) < now;
+  }).sort((a,b) => new Date(a.due) - new Date(b.due)); // mais antigo primeiro
+
+  const section = document.getElementById('overdue-section');
+  section.style.display = overdueCards.length ? 'block' : 'none';
+  if (!overdueCards.length) return;
+
+  const daysDiff = d => Math.floor((now - new Date(d)) / 86400000);
+  const fmtDue = d => new Date(d).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'});
+
+  document.getElementById('overdue-table').innerHTML =
+    '<thead><tr>'
+    + '<th>Card</th>'
+    + '<th>Cliente</th>'
+    + '<th>Responsável</th>'
+    + '<th>Deveria entregar</th>'
+    + '<th>Atraso</th>'
+    + '</tr></thead><tbody>'
+    + overdueCards.map(c => {
+        const client = getClientFromCard(c) || '—';
+        const kas = (c.idMembers||[]).map(mid => (memberMap[mid]||'').split(' ')[0]).filter(Boolean).join(', ') || '—';
+        const days = daysDiff(c.due);
+        return '<tr>'
+          + '<td style="font-weight:600;color:var(--text)">' + c.name + '</td>'
+          + '<td><span class="overdue-client">' + client + '</span></td>'
+          + '<td><span class="overdue-ka">' + kas + '</span></td>'
+          + '<td style="font-family:var(--mono);font-size:0.72rem">' + fmtDue(c.due) + '</td>'
+          + '<td><span class="overdue-days">' + days + 'd</span></td>'
+          + '</tr>';
+      }).join('')
+    + '</tbody>';
+}
+
+// ── Cards em revisão ────────────────────────────────────────
+async function renderReview() {
+  const { lists, cards, members } = boardData;
+  const memberMap = Object.fromEntries(members.map(m=>[m.id,m.fullName||m.username]));
+  const revList = lists.find(l => REV_PATTERN.test(l.name));
+  if (!revList) { document.getElementById('review-section').style.display='none'; return; }
+
+  const revCards = cards.filter(c => c.idList === revList.id);
+  if (!revCards.length) { document.getElementById('review-section').style.display='none'; return; }
+
+  const now = new Date();
+  const daysDiff = d => Math.max(0, Math.floor((now - new Date(d)) / 86400000));
+  const fmtDate  = d => new Date(d).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'});
+
+  // Buscar histórico de cada card para saber quando entrou em revisão
+  const rows = await Promise.all(revCards.map(async c => {
+    let enteredAt = null;
+    try {
+      const actions = await trello(`/cards/${c.id}/actions?filter=updateCard&limit=50`);
+      // Pegar a ação MAIS RECENTE onde o card foi movido para a lista de revisão
+      // (caso tenha saído e voltado, pega a última entrada)
+      const allMoved = actions.filter(a =>
+        a.data && a.data.listAfter && a.data.listAfter.id === revList.id
+      );
+      // actions vem em ordem decrescente (mais recente primeiro)
+      if (allMoved.length) enteredAt = allMoved[0].date;
+    } catch(e) {}
+    // Fallback: usar dateLastActivity se não achar no histórico
+    if (!enteredAt) enteredAt = c.dateLastActivity;
+    const days = daysDiff(enteredAt);
+    const client = getClientFromCard(c) || '—';
+    const kas = (c.idMembers||[]).map(mid=>(memberMap[mid]||'').split(' ')[0]).filter(Boolean).join(', ') || '—';
+    const daysCls = days <= 2 ? 'ok' : days <= 5 ? 'warn' : 'danger';
+    return { name:c.name, client, kas, enteredAt, days, daysCls };
+  }));
+
+  // Ordenar: mais tempo parado primeiro
+  rows.sort((a,b) => b.days - a.days);
+
+  document.getElementById('review-section').style.display = 'block';
+  document.getElementById('review-table').innerHTML =
+    '<thead><tr>'
+    + '<th>Card</th><th>Cliente</th><th>Responsável</th><th>Entrou em revisão</th><th>Tempo parado</th>'
+    + '</tr></thead><tbody>'
+    + rows.map(r =>
+        '<tr>'
+        + '<td style="font-weight:600;color:var(--text)">' + r.name + '</td>'
+        + '<td><span class="overdue-client">' + r.client + '</span></td>'
+        + '<td><span class="overdue-ka">' + r.kas + '</span></td>'
+        + '<td style="font-family:var(--mono);font-size:0.72rem">' + fmtDate(r.enteredAt) + '</td>'
+        + '<td><span class="review-days ' + r.daysCls + '">' + r.days + 'd</span></td>'
+        + '</tr>'
+      ).join('')
+    + '</tbody>';
 }
 
 // ── Touchpoints ───────────────────────────────────────────────
@@ -741,7 +943,7 @@ function renderChart(id, type, labels, datasets, extra={}) {
       responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{ labels:{ color:'#6b7280', font:{ family:'DM Mono', size:11 }, boxWidth:10 } } },
       scales: type==='doughnut' ? {} : {
-        x:{ ticks:{ color:'#9ca3af', font:{ family:'DM Mono', size:10 } }, grid:{ color:'#f3f4f6' } },
+        x:{ ticks:{ color:'#9ca3af', font:{ family:'DM Mono', size:10 }, maxRotation:45, minRotation:45, autoSkip:false }, grid:{ color:'#f3f4f6' } },
         y:{ ticks:{ color:'#9ca3af', font:{ family:'DM Mono', size:10 } }, grid:{ color:'#f3f4f6' } },
       },
       ...extra,
